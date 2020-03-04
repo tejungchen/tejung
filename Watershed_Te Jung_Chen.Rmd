@@ -36,6 +36,7 @@ library(ggplot2)
 library(broom)
 library(dplyr)
 library(kableExtra)
+library(lme4)
 ```
 # Data Description
 The data consists of 17,990 real daily observations of daily temperature, daily rainfall, daily snowfall, daily total precipitation (rain + snow), and daily streamflow (height) for a single station between the year of 1963 and 2012 at a natural watershed in Canada. The term "daily" implies that the values provided for each observation have been either averaged (temperature) or accumulated (rainful/snowfall amount) across the day. Moreover, the stations are all within Prairie Pothole region. 
@@ -109,6 +110,24 @@ year.df <- data.frame(Station = names(year.max.by.station),
 
 matplot(year.df[,2:3], xaxt='n', pch=1, ylab='range')
 ```
+
+Using linear mixed-effect models to compare which varibles shows the best fit. Station is the random effect of all 6 models and the rest of the variables are fixed effect. Thus, I will only be looking at which variables shows the best fit. Model 1 is a linear mixed-effect model that fit the streamflow data with minimum temperature (T_min) and maximum temperature (T_max). Model 2 is a linear mixed-effect model that fit the streamflow data with Percipitation. Model 3 is a linear mixed-effect model that fit the streamflow data with snowmelt and maximum temperature (T_max). Model 4 is a linear mixed-effect model that fit the streamflow data with the interaction of precipitation and average temperature (T_avg). Model 5 is a linear mixed-effect model that fit the interaction of snowmelt and average temperature (T_avg). Model 6 is a linear mixed-effect model that fit the ratio of snowmelt and precipitation.
+
+```{r git.align="center", eval=FALSE}
+model1 <- lmer(streamflow.data1 ~ T_min + T_max + (1|Station), 
+               data = streamflow.data1, REML = FALSE)
+model2 <- lmer(streamflow.data1 ~ Precipitation + (1|Station), 
+               data = streamflow.data, REML = FALSE)
+model3 <- lmer(streamflow.data1 ~ Snowmelt + T_max + (1|Station), 
+               data = dat_10, REML = FALSE)
+model4 <- lmer(streamflow.data1 ~ Precipitation * T_avg + (1|Station), 
+               data = dat_10, REML = FALSE)
+model5 <- lmer(streamflow.data1 ~ Snowmelt * T_avg + (1|Station), 
+               data = dat_10, REML = FALSE)
+model6 <- lmer(streamflow.data1 ~ Snowmelt / Precipitation + (1|Station), 
+               data = dat_10, REML = FALSE)
+```
+
 # Results
 Since 10% of the missing data was generally randomly distributed throughout the year, but larger number of missing data was attributed to continuous two-three month missing data which could cause significant bias on trend analysis between years. Moreover, the client did not want to compare a year with 365 data to a year with 300 days data with half-winter missing data so 90% threshold is standard in hydrology for the calculation of annual average (Table 2).
 
@@ -126,10 +145,14 @@ To analyize if the data is plausible, using the QQPlot shows that the the data i
 
 Using the residual plot to see if the regressioin has any error and variance of the data. The two residual plots below shows the plots shows a bit of heteroscedasticity which means it shows a nonconstant variance in the data (Figure 7 and Figure 8). However, the residual plots seems to fit evenly on the line. This means that the regression model seem to be a good fit for the data.
 
+Fitting model 1 to model 6, the interaction of percipitation and T_avg is the main driver since model 4 is most fitted compared to other models. Hence, percipitation and T_ave seem to be the impact towards the streamflow of the watershed. 
+
 # Conclusions
 The variability between station could be impacted by temperature the most since we are taking the average of the temperature in the boxplot. From the boxplot of variability between stations and the boxplot of varaibility between years, making stations independent would be a better approach. Since year can depend on the previous year and it could show a bias result if we compare year by year. 
 
-The difference between boxplots of the other variables such as temperature, precipitation and snowmelt is that the boxplot for precipitation variability between stations and the boxplot for snowmelt variability between stations seems to be more concentrated in the lower range. However, the boxplot for snowmelt seems to be more concentrated in the lower region compared to the boxplot for precipitation. Thus, we can conclude that snowmelt is the factor that creates more impact on a watershed's streamflow and quantify each factor's contribution to streamflow change.
+The difference between boxplots of the other variables such as temperature, precipitation and snowmelt is that the boxplot for precipitation variability between stations and the boxplot for snowmelt variability between stations seems to be more concentrated in the lower range. However, the boxplot for snowmelt seems to be more concentrated in the lower region compared to the boxplot for precipitation. Thus, we can conclude that snowmelt is the factor that creates more impact on a watershed's streamflow and quantify each factor's contribution to streamflow change. 
+
+However, when comparing model 1 to model 6, I found that the interaction of percipitation and T_avg is the main driver since model 4 is most fitted compared to other models rather than the impact of the snowmelt. Hence, percipitation and T_ave seem to be the impact towards the streamflow of the watershed. 
 
 In this study there are several limitations such as missing values and outliers. Since we removed data that have less than 10 years of missing data, the years are not consecutive which means that some data have no overlaps. It can be hard to compare the data between stations since some stations does not have the same years compare to other stations. 
 
@@ -166,6 +189,17 @@ knitr::include_graphics("residual 1.png")
 ```{r Residual1, echo=FALSE, fig.cap="Residual plot of the streamflow data after aggregating and removing the missing values", fig.align='center',out.width = '90%'}
 knitr::include_graphics("residual 2.png")
 ```
+
+```{r variables, eval=FALSE}
+T_min <- streamflow.data1 %>% select(T_min)
+T_max <- streamflow.data1 %>% select(T_max)
+Precipitation <- streamflow.data1 %>% select(Precipitation)
+Snowmelt <- streamflow.data1 %>% select(Snowmelt)
+T_avg <- ((T_max+T_min)/2)
+Station <- streamflow.data1 %>% select(Station)
+
+```
+
 
 ```{r , eval=FALSE}
 table(streamflow.data1$Station)
